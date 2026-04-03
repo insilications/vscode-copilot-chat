@@ -26,7 +26,7 @@ import { Response } from '../../networking/common/fetcherService';
 import { postRequest } from '../../networking/common/networking';
 import { ITelemetryService } from '../../telemetry/common/telemetry';
 import { CodeSearchOptions, CodeSearchResult, RemoteCodeSearchError, RemoteCodeSearchIndexState, RemoteCodeSearchIndexStatus } from './remoteCodeSearch';
-
+import * as l10n from '@vscode/l10n';
 
 interface ResponseShape {
 	readonly results: readonly SemanticSearchResult[];
@@ -195,6 +195,9 @@ export class GithubCodeSearchService implements IGithubCodeSearchService {
 		telemetryInfo: TelemetryCorrelationId,
 	): Promise<Result<true, RemoteCodeSearchError>> {
 		const authToken = await this.getGithubAccessToken(auth.silent);
+		// const authToken = await this._authenticationService.getGitHubSession('permissive', { silent: auth.silent })?.accessToken;
+
+		this._logService.trace(`authToken: ${JSON.stringify(authToken)}`);
 		if (!authToken) {
 			return Result.error({ type: 'not-authorized' });
 		}
@@ -209,6 +212,12 @@ export class GithubCodeSearchService implements IGithubCodeSearchService {
 				auto: triggerReason === 'auto',
 			})
 		}, { type: RequestType.EmbeddingsIndex, repoWithOwner: toGithubNwo(githubRepoId) });
+
+		this._logService.trace(`authToken: ${JSON.stringify(authToken)}`);
+		this._logService.trace(`body: ${JSON.stringify({auto: triggerReason === 'auto'})}`);
+		this._logService.trace(`toGithubNwo(githubRepoId): ${JSON.stringify(toGithubNwo(githubRepoId))}`);
+		this._logService.trace(`getGithubMetadataHeaders: ${JSON.stringify(...getGithubMetadataHeaders(telemetryInfo.callTracker, this._envService))}`);
+		this._logService.trace(`response: ${JSON.stringify(response)}`);
 
 		if (!response.ok) {
 			this._logService.error(`GithubCodeSearchService.triggerIndexing(${triggerReason}). Failed to request indexing for '${githubRepoId}'. Response: ${response.status}. ${await response.text()}`);
@@ -344,8 +353,15 @@ export class GithubCodeSearchService implements IGithubCodeSearchService {
 
 	private async getGithubAccessToken(silent: boolean) {
 		return (await this._authenticationService.getGitHubSession('permissive', { silent }))?.accessToken
-			?? (await this._authenticationService.getGitHubSession('any', { silent }))?.accessToken;
+			// ?? (await this._authenticationService.getGitHubSession('any', { silent }))?.accessToken;
 	}
+
+// 	private async getGithubAccessToken(silent: boolean) {
+// 		return await this._authenticationService.getGitHubSession('permissive', { silent })?.accessToken;
+// // 		return (await this._authenticationService.getGitHubSession('permissive', { forceNewSession: { detail: l10n.t('Sign in again to restore access.') }
+// // }))?.accessToken;
+// 			// ?? (await this._authenticationService.getGitHubSession('any', { silent }))?.accessToken;
+// 	}
 
 
 	private async isEmptyRepo(authToken: string, githubRepoId: GithubRepoId, token: CancellationToken): Promise<boolean> {
